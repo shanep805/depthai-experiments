@@ -22,7 +22,7 @@ If you haven’t already, set up the ESP32 IDF framework:
 https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/index.html
 
 ```
-cd esp32-spi-message-demo/parse_meta/
+cd esp32-spi-message-demo/depth_calculator/
 idf.py build
 idf.py -p /dev/ttyUSB1 flash monitor
 ```
