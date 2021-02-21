@@ -24,10 +24,23 @@ right.setBoardSocket(dai.CameraBoardSocket.RIGHT)
 
 # Create a node that will produce the depth map (using disparity output as it's easier to visualize depth this way)
 stereo = pipeline.createStereoDepth()
-stereo.setConfidenceThreshold(200)
+stereo.setConfidenceThreshold(255)
 stereo.setOutputDepth(True)
+
+lrcheck  = True   # Better handling for occlusions
+extended = False  # Closer-in minimum depth, disparity range is doubled 
+subpixel = True   # Better accuracy for longer distance, fractional disparity 32-levels
+# Options: MEDIAN_OFF, KERNEL_3x3, KERNEL_5x5, KERNEL_7x7 
 median   = dai.StereoDepthProperties.MedianFilter.KERNEL_7x7
+
+# Sanitize some incompatible options
+if lrcheck or extended or subpixel:
+    median   = dai.StereoDepthProperties.MedianFilter.MEDIAN_OFF # TODO
+
 stereo.setMedianFilter(median) # KERNEL_7x7 default
+stereo.setLeftRightCheck(lrcheck)
+stereo.setExtendedDisparity(extended)
+stereo.setSubpixel(subpixel)
 
 left.out.link(stereo.left)
 right.out.link(stereo.right)
@@ -36,12 +49,11 @@ depthcalculator = pipeline.createDepthCalculator()
 config = dai.DepthCalculatorConfig()
 config.lower_threshold = 100
 config.upper_threshold = 5000
-rect = dai.Rect()
-rect.xmin = 0.4
-rect.ymin = 0.4
-rect.xmax = 0.5
-rect.ymax = 0.5
-config.roi = rect
+config.roi = dai.Rect(0.4, 0.4, 0.5, 0.5)
+depthcalculator.addROI(config)
+config.lower_threshold = 200
+config.upper_threshold = 5000
+config.roi = dai.Rect(0.5, 0.5, 0.7, 0.7)
 depthcalculator.addROI(config)
 
 stereo.depth.link(depthcalculator.depthInput)
@@ -95,6 +107,22 @@ while True:
         frame = np.array(in_depth.getData()).astype(np.uint8).view(np.uint16).reshape((in_depth.getHeight(), in_depth.getWidth()))
 
         frame = np.ascontiguousarray(frame)
+        color = (255, 255, 255)
+        for avg in depth_avg:
+            roi = avg.config.roi
+            xmin = int(roi.xmin * frame.shape[1])
+            ymin = int(roi.ymin * frame.shape[0])
+            xmax = int(roi.xmax * frame.shape[1])
+            ymax = int(roi.ymax * frame.shape[0])
+
+            pt1 = (xmin, ymin)
+            pt2 = (xmax, ymax)
+            pt_middle = (xmin + 20, int((ymax+ymin)/2))
+            cv2.rectangle(frame, pt1, pt2, color, cv2.FONT_HERSHEY_TRIPLEX)
+
+            average = avg.depth_avg
+            cv2.putText(frame, "{:.2f} mm".format(average), pt_middle, cv2.FONT_HERSHEY_TRIPLEX, 0.5, color)
+
         # frame is transformed, the color map will be applied to highlight the depth info
         # frame is ready to be shown
         cv2.imshow("depth", frame)

@@ -24,7 +24,7 @@ https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/index.ht
 ```
 cd esp32-spi-message-demo/depth_calculator/
 idf.py build
-idf.py -p /dev/ttyUSB1 flash monitor
+idf.py -p /dev/ttyUSB* flash monitor
 ```
 
 ### Run the DepthAI Side of the Example:
